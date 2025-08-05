@@ -9,7 +9,7 @@ use App\Events\StockUpdated;
 use App\Events\LowStockAlert;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use Carbon\Carbon;
 class StockService
 {
     public function stockIn(array $data)
@@ -18,22 +18,28 @@ class StockService
         try {
             $variant = ProductVariant::with('currentStock')->findOrFail($data['product_variant_id']);
 
+            // Parse expired_date dengan benar
+            $expiredDate = null;
+            if (!empty($data['expired_date'])) {
+                $expiredDate = Carbon::parse($data['expired_date'])->format('Y-m-d H:i:s');
+            }
+
             // Buat stock movement record
             $movement = StockMovement::create([
                 'product_variant_id' => $data['product_variant_id'],
                 'supplier_id' => $data['supplier_id'],
                 'user_id' => auth()->id(),
                 'type' => 'in',
-                'quantity' => $data['quantity'],
-                'purchase_price' => $data['purchase_price'],
+                'quantity' => (int) $data['quantity'], // Pastikan integer
+                'purchase_price' => (float) $data['purchase_price'], // Pastikan float
                 'batch_number' => $data['batch_number'] ?? null,
-                'expired_date' => $data['expired_date'] ?? null,
+                'expired_date' => $expiredDate,
                 'notes' => $data['notes'] ?? 'Stok masuk',
                 'reference_type' => 'purchase'
             ]);
 
             // Update current stock
-            $this->updateCurrentStock($data['product_variant_id'], $data['quantity'], $data['purchase_price']);
+            $this->updateCurrentStock($data['product_variant_id'], (int) $data['quantity'], (float) $data['purchase_price']);
 
             DB::commit();
 
@@ -68,16 +74,18 @@ class StockService
             ];
         }
     }
-
     public function stockOut($productVariantId, $quantity, $notes = null, $referenceType = null, $referenceId = null)
     {
         DB::beginTransaction();
         try {
             $currentStock = CurrentStock::where('product_variant_id', $productVariantId)->first();
 
+            $quantity = (int) $quantity;
+
             if (!$currentStock || $currentStock->quantity < $quantity) {
                 throw new \Exception('Stok tidak mencukupi');
             }
+
 
             // Buat stock movement record
             $movement = StockMovement::create([
@@ -129,6 +137,11 @@ class StockService
             if (!$currentStock) {
                 throw new \Exception('Data stok tidak ditemukan');
             }
+
+            // Pastikan quantity adalah integer
+            $newQuantity = (int) $data['new_quantity'];
+            $adjustment = $newQuantity - $currentStock->quantity;
+
 
             $adjustment = $data['new_quantity'] - $currentStock->quantity;
 
@@ -208,17 +221,19 @@ class StockService
         }
 
         return $query->orderBy('created_at', 'desc')
-                     ->paginate($filters['per_page'] ?? 15);
+            ->paginate($filters['per_page'] ?? 15);
     }
 
     public function getExpiringProducts($days = 30)
     {
+        $days = (int) $days;
+
         $movements = StockMovement::with(['productVariant.product'])
-                                ->where('type', 'in')
-                                ->where('expired_date', '<=', now()->addDays($days))
-                                ->where('expired_date', '>', now())
-                                ->orderBy('expired_date', 'asc')
-                                ->get();
+            ->where('type', 'in')
+            ->where('expired_date', '<=', now()->addDays($days))
+            ->where('expired_date', '>', now())
+            ->orderBy('expired_date', 'asc')
+            ->get();
 
         return [
             'success' => true,
@@ -229,6 +244,9 @@ class StockService
     private function updateCurrentStock($productVariantId, $quantityChange, $purchasePrice = null)
     {
         $currentStock = CurrentStock::where('product_variant_id', $productVariantId)->first();
+   // Pastikan semua nilai numerik
+        $quantityChange = (int) $quantityChange;
+        $purchasePrice = $purchasePrice ? (float) $purchasePrice : null;
 
         if (!$currentStock) {
             // Buat record baru jika belum ada
@@ -245,7 +263,7 @@ class StockService
             $newAvgPrice = $currentStock->avg_purchase_price;
             if ($quantityChange > 0 && $purchasePrice) {
                 $totalValue = ($currentStock->quantity * $currentStock->avg_purchase_price) +
-                             ($quantityChange * $purchasePrice);
+                    ($quantityChange * $purchasePrice);
                 $newAvgPrice = $totalValue / $newQuantity;
             }
 

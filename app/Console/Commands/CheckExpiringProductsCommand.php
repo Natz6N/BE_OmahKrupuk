@@ -13,8 +13,10 @@ class CheckExpiringProductsCommand extends Command
     protected $description = 'Check for products that will expire soon';
 
     public function handle()
-    {
-        $days = $this->option('days');
+    {// Pastikan parsing integer dengan benar
+        $daysOption = $this->option('days');
+        $days = is_numeric($daysOption) ? (int) $daysOption : 30;
+
         $this->info("Checking for products expiring in {$days} days...");
 
         $expiringProducts = StockMovement::with('productVariant.product')

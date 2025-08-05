@@ -63,6 +63,8 @@ class NotificationService
 
     public function getExpiringProductNotifications($days = 30)
     {
+           $days = (int) $days;
+
         $expiringProducts = StockMovement::with('productVariant.product')
                                         ->where('type', 'in')
                                         ->where('expired_date', '<=', Carbon::now()->addDays($days))

@@ -256,19 +256,19 @@ Route::prefix('v1')->middleware(['jwt.auth'])->group(function () {
     });
 });
 
-// Catch-all route for undefined API endpoints
-Route::fallback(function () {
-    return response()->json([
-        'success' => false,
-        'message' => 'API endpoint not found',
-        'available_endpoints' => [
-            'auth' => '/api/v1/auth/*',
-            'dashboard' => '/api/v1/dashboard/*',
-            'products' => '/api/v1/products/*',
-            'sales' => '/api/v1/sales/*',
-            'stock' => '/api/v1/stock/*',
-            'reports' => '/api/v1/reports/*',
-            'barcode' => '/api/v1/barcode/*'
-        ]
-    ], 404);
-});
+// // Catch-all route for undefined API endpoints
+// Route::fallback(function () {
+//     return response()->json([
+//         'success' => false,
+//         'message' => 'API endpoint not found',
+//         'available_endpoints' => [
+//             'auth' => '/api/v1/auth/*',
+//             'dashboard' => '/api/v1/dashboard/*',
+//             'products' => '/api/v1/products/*',
+//             'sales' => '/api/v1/sales/*',
+//             'stock' => '/api/v1/stock/*',
+//             'reports' => '/api/v1/reports/*',
+//             'barcode' => '/api/v1/barcode/*'
+//         ]
+//     ], 404);
+// });
